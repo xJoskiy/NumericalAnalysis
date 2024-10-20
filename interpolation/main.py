@@ -76,13 +76,13 @@ class interpol:
 
 
 def main():
-    print("\n""Программа для алгебраического интерполирования функции ln(1 + x), вариант №2\n")
+    print("\n""Программа для алгебраического интерполирования функции ln(1 + x). Вариант №2\n")
     f = lambda x: math.log1p(x)
     while True:
         left = float(input("Введите левый конец отрезка: "))
         right = float(input("Введите правый конец отрезка: "))
-        num_nodes = int(input("Введите число значений M в таблице: "))
-        while (degree := int(input("Введите степень интерполяционного многочлена N < M: "))) > num_nodes:
+        num_nodes = int(input("Введите M - число значений в таблице: "))
+        while (degree := int(input("Введите N - степень интерполяционного многочлена (N < M): "))) > num_nodes:
             print("Введено недопустимое значение N")
 
         inter = interpol(f, left, right, num_nodes, degree)
