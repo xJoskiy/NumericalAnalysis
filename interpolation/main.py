@@ -7,48 +7,46 @@ import operator
 
 
 class interpol:
-    def __init__(self, f, start, end, num_nodes, degree):
+    def __init__(self, f, start, end, num_nodes):
         self.f = f
         self.nodes = list(np.linspace(start, end, num_nodes))
-        self.degree = degree
         self.interp_nodes = None
+        self.degree = None
 
     # prints table with function value in given number of points
     def print_nodes(self):
         self.print_table(self.nodes)
 
     # prints table with sorted points used for interpolation polynom
-    def print_interp_nodes(self, x: float):
-        points = self.get_knn(x, self.degree)
-        points.sort()
+    def print_interp_nodes(self, x):
+        points = self.get_knn(x, self.degree + 1)
         self.print_table(points)
-    
+
     # prints table with function value in given points
     def print_table(self, points):
         vals = [self.f(t) for t in points]
         table = (['x'] + points, ['y'] + vals)
-        print(tb.tabulate(table, floatfmt=".2f"))
+        print(tb.tabulate(table, floatfmt=".2f", tablefmt="fancy_grid", numalign="center"))
 
     def draw(self):
         f_vals = [self.f(t) for t in self.nodes]
         plt.plot(self.nodes, f_vals, 'o-', linewidth=1.5, label="ln(1 + x)")
 
-        L_vals = [self.interpolate(t) for t in self.nodes]
+        L_vals = [self.L_poly(t) for t in self.nodes]
         plt.plot(self.nodes, L_vals, 'o-', linewidth=1.5, label="L(x)")
 
         plt.axhline(0, color='gray', linewidth=1.5)
         plt.axvline(0, color='gray', linewidth=1.5)
         plt.legend()
         plt.show(block=False)
-    
+
     def get_knn(self, x: float, k: int):
-        dist_and_points = [(float(t), abs(x - float(t))) for t in self.nodes]
+        dist_and_points = [(t, abs(x - t)) for t in self.nodes]
         dist_and_points.sort(key=lambda x: x[1])
         return [tup[0] for tup in dist_and_points[:k]]
 
     def interpolate(self, x: float) -> float:
-        if self.interp_nodes is None:
-            self.interp_nodes = self.get_knn(x, self.degree)
+        self.interp_nodes = self.get_knn(x, self.degree + 1)
         return self.L_poly(x)
 
     def mul(self, x, nodes_, exclude: int = None):
@@ -56,23 +54,21 @@ class interpol:
         if exclude is not None:
             nodes.pop(exclude)
         diffs = [x - t for t in nodes]
-        *_, prod = itertools.accumulate(diffs, operator.mul)
-        return prod
+        res = 1
+        if len(diffs) > 1:
+            *_, res = itertools.accumulate(diffs, operator.mul)
+        return 1 if len(diffs) == 0 else res
 
     def fund_poly(self, x, nodes, exclude):
         left = self.mul(x, nodes, exclude)
         right = self.mul(nodes[exclude], nodes, exclude)
-        if right == 0:
-            print(exclude)
         return left / right
-        
-        
+
     def L_poly(self, x):
         nodes = self.interp_nodes
-        fund_vals = [self.f(nodes[i]) * self.fund_poly(x, nodes, i) for i in range(self.degree)]
+        fund_vals = [self.f(nodes[i]) * self.fund_poly(x, nodes, i) for i in range(self.degree + 1)]
         *_, res = itertools.accumulate(fund_vals, operator.add)
         return res
-
 
 
 def main():
@@ -82,33 +78,44 @@ def main():
         left = float(input("Введите левый конец отрезка: "))
         right = float(input("Введите правый конец отрезка: "))
         num_nodes = int(input("Введите M - число значений в таблице: "))
-        while (degree := int(input("Введите N - степень интерполяционного многочлена (N < M): "))) > num_nodes:
+        while (degree := int(input(f"Введите N - степень интерполяционного многочлена (N < {num_nodes}): "))) >= num_nodes:
             print("Введено недопустимое значение N")
 
-        inter = interpol(f, left, right, num_nodes, degree)
+        inter = interpol(f, left, right, num_nodes)
         inter.print_nodes()
-        start = True
 
         while True:
-            x = input("Введите точку интерполяции или \"exit\" - для выхода: ")
-            print()
-            if x == "exit":
-                plt.close()
-                break
-            x = float(x)
-            
-            if start:
-                print("\n""Узлы интерполяции, ближайшие к точке интерполяции:")
+            x = float(input("Введите точку интерполяции: "))
+
+            while True:
+                inter.degree = degree
+                print("\n"f"Узлы интерполяции, ближайшие к точке интерполяции {x}:")
                 inter.print_interp_nodes(x)
-                start = False
 
-            val = inter.interpolate(x)
-            print(f"Значение интерполяционного многочлена в точке x: {val}\n")
-            print(f"Абсолютная погрешность: {abs(val - f(x))}\n")
-            inter.draw()
+                val = inter.interpolate(x)
 
-        if int(input("Хотите повторить ввод? 1 - Да, 0 - Нет: ")) == 0:
-            break
+                print(f"Значение интерполяционного многочлена в точке x: {val}\n")
+                print(f"Абсолютная погрешность: {abs(val - f(x))}\n")
+                plt.close()
+                inter.draw()
+                print("\n""Доступные опции:\n"
+                        "1 - Ввести новую степень многочлена\n"
+                        "2 - Изменить параметры таблицы\n"
+                        "3 - Ввести новую точку интерполяции\n"
+                        "4 - Выйти\n")
+                choice = int(input("Выберите опцию: "))
+
+                if choice == 4:
+                    return
+                if choice == 1:
+                    while (degree := int(input(f"Введите N - степень интерполяционного многочлена (N < {num_nodes}): "))) >= num_nodes:
+                        print("Введено недопустимое значение N")
+                if choice in (2, 3):
+                    break
+
+            if choice == 2:
+                break
+
         print()
 
 
